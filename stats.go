@@ -1,30 +1,23 @@
 package vanilla
 
-import (
-	"fmt"
-
-	"github.com/360EntSecGroup-Skylar/excelize"
-)
-
 // Stats of the player
 type Stats struct {
-	Str int //Strength
-	Agi int // Agility
-	Sta int // Stamina
-	Int int // Intellect
-	Spi int // Spirit
+	Str  int //Strength
+	Agi  int // Agility
+	Sta  int // Stamina
+	Inte int // Intellect
+	Spi  int // Spirit
 }
 
-// ReadConfig from excel
-func ReadConfig(path string) (err error) {
-	f, err := excelize.OpenFile(path)
-	if err != nil {
-		return
-	}
+// Add delta stats, and return a new stats
+func (stats Stats) Add(delta Stats) (res Stats) {
+	res = Stats{}
 
-	for index, name := range f.GetSheetMap() {
-		fmt.Println(index, name)
-	}
+	res.Str = stats.Str + delta.Str
+	res.Agi = stats.Agi + delta.Agi
+	res.Sta = stats.Sta + delta.Sta
+	res.Inte = stats.Inte + delta.Inte
+	res.Spi = stats.Spi + delta.Spi
 
 	return
 }
