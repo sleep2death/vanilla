@@ -6,21 +6,42 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
 )
 
 var (
-	r   = gin.Default()
 	srv *http.Server
 )
 
+type user struct {
+	name string
+}
+
+func setupRouter() (*gin.Engine, error) {
+	db, err := initDB("mongodb://localhost:27017")
+	if err != nil {
+		return nil, err
+	}
+
+	router := gin.Default()
+	router.Use(CORSMiddleware())
+
+	router.POST("/login", getLoginHandler(db))
+	router.POST("/register", getRegisterHandler(db))
+
+	api := router.Group("/api")
+	api.Use(authMiddleware())
+	api.GET("/ping", getPingHandler())
+
+	return router, nil
+}
+
 // Start the server
 func Start(addr string) {
-	// serve the static files in the client's dist
-	r.Use(static.ServeRoot("/", "../client/dist"))
-	r.Use(static.ServeRoot("/dist", "../client/dist"))
-
+	r, err := setupRouter()
+	if err != nil {
+		log.Fatal(err)
+	}
 	srv = &http.Server{
 		Addr:    addr,
 		Handler: r,

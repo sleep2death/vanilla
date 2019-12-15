@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	vanilla.Start(":8282")
+	vanilla.Start(":8082")
 
 	// Wait for interrupt signal to gracefully shutdown the server with
 	// a timeout of 5 seconds.
