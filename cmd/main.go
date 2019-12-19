@@ -9,8 +9,7 @@ import (
 )
 
 func main() {
-	vanilla.Start(":8082")
-
+	go func() { vanilla.Run(":8082") }()
 	// Wait for interrupt signal to gracefully shutdown the server with
 	// a timeout of 5 seconds.
 	quit := make(chan os.Signal)

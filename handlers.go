@@ -226,6 +226,7 @@ func authMiddleware() gin.HandlerFunc {
 
 		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 			log.Println(claims["jti"], claims["exp"])
+			c.Set("username", claims["jti"])
 			c.Next()
 		} else {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
