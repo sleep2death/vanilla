@@ -3,10 +3,12 @@ package vanilla
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
@@ -55,6 +57,47 @@ type client struct {
 
 func getWSHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		tokenStr := c.DefaultQuery("token", "")
+
+		if len(tokenStr) == 0 {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"reason": "authorization field empty",
+			})
+			return
+		}
+		// log.Println("token", tokenStr)
+		token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
+			// Don't forget to validate the alg is what you expect:
+			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+			}
+			return jwtKey, nil
+		})
+
+		if err != nil {
+			if err.Error() == "Token is expired" {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+					"reason": "token is expired",
+				})
+			} else {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+					"reason": "token is invalid",
+				})
+			}
+			return
+		}
+
+		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+			log.Println(claims["jti"], claims["exp"])
+			c.Set("username", claims["jti"])
+			c.Next()
+		} else {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"reason": "token is invalid",
+			})
+			return
+		}
+
 		ws, err := ug.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"reason": "websocket upgrade failed"})
@@ -91,7 +134,7 @@ func (c *client) readPump() {
 		}
 
 		msg = bytes.TrimSpace(bytes.Replace(msg, newline, space, -1))
-		log.Println("ws message <", msg)
+		log.Println("websocket <", string(msg))
 	}
 }
 

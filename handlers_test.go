@@ -5,17 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	engineio "github.com/googollee/go-engine.io"
-	"github.com/googollee/go-engine.io/transport"
-	"github.com/googollee/go-engine.io/transport/polling"
-	"github.com/googollee/go-engine.io/transport/websocket"
+	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -104,19 +101,14 @@ func TestLoginHandler(t *testing.T) {
 	assert.Equal(t, "token is expired", resp["reason"])
 }
 
-func TestSocketIO(t *testing.T) {
+func TestWebsocket(t *testing.T) {
 	router, err := setupRouter()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	io, err := setupIO(router)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	defer io.Close()
-	go io.Serve()
+	go router.Run(":8082")
+	time.Sleep(time.Second)
 
 	// login and get the token
 	token, err := getToken(router)
@@ -124,19 +116,21 @@ func TestSocketIO(t *testing.T) {
 		t.Error(err)
 	}
 
-	go router.Run(":8082")
-	time.Sleep(time.Second)
-
 	header := make(http.Header)
 	header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 
-	dialer := engineio.Dialer{
-		Transports: []transport.Transport{polling.Default, websocket.Default},
-	}
-	conn, err := dialer.Dial("http://localhost:8082/io/", header)
+	conn, resp, err := websocket.DefaultDialer.Dial("ws://localhost:8082/ws", header)
 	if err != nil {
-		log.Fatalln("dial error:", err)
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			t.Error(err)
+		}
+		t.Error(string(body))
 	}
-	defer conn.Close()
-	// log.Println(conn.ID(), conn.LocalAddr(), "->", conn.RemoteAddr(), "with", conn.RemoteHeader())
+
+	err = conn.WriteMessage(websocket.TextMessage, []byte("Hello"))
+	if err != nil {
+		t.Error(err)
+	}
+
 }

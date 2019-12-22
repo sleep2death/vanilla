@@ -19,7 +19,7 @@ import (
 )
 
 var jwtKey = []byte("vanilla_icecream")
-var expire = time.Hour * 100
+var expire = time.Minute * 30
 
 // login form binding
 type login struct {
