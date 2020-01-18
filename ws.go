@@ -11,6 +11,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 const (
@@ -55,7 +56,7 @@ type client struct {
 	send chan []byte
 }
 
-func getWSHandler() gin.HandlerFunc {
+func getWSHandler(db *mongo.Database) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenStr := c.DefaultQuery("token", "")
 
@@ -108,11 +109,11 @@ func getWSHandler() gin.HandlerFunc {
 		defer close(wsc.send)
 
 		go wsc.writePump()
-		go wsc.readPump()
+		go wsc.readPump(db)
 	}
 }
 
-func (c *client) readPump() {
+func (c *client) readPump(db *mongo.Database) {
 	defer func() {
 		// c.hub.unregister <- c
 		c.ws.Close()
@@ -134,7 +135,9 @@ func (c *client) readPump() {
 		}
 
 		msg = bytes.TrimSpace(bytes.Replace(msg, newline, space, -1))
-		log.Println("websocket <", string(msg))
+		if len(msg) > 0 {
+			log.Println("websocket <", string(msg))
+		}
 	}
 }
 
@@ -151,6 +154,7 @@ func (c *client) writePump() {
 		// receive the sending channel message
 		case msg, ok := <-c.send:
 			if !ok {
+				log.Println("send channel closed")
 				c.ws.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}

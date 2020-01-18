@@ -16,6 +16,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+
+	core "github.com/sleep2death/vanilla/core"
 )
 
 var jwtKey = []byte("vanilla_icecream")
@@ -235,6 +237,60 @@ func authMiddleware() gin.HandlerFunc {
 			return
 		}
 	}
+}
+
+func getPlayerInfoHandler(db *mongo.Database) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		username := c.DefaultQuery("username", "")
+		if len(username) == 0 {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+				"reason": "username is empty",
+			})
+			return
+		}
+
+		opts := options.FindOne()
+		filter := bson.M{"username": username}
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+
+		res := db.Collection(UserCollection).FindOne(ctx, filter, opts)
+
+		if res.Err() != nil {
+			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{
+				"reason": "user not found",
+			})
+			return
+		}
+
+		player := &core.Player{}
+		if err := res.Decode(player); err != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+				"reason": "user data invalid",
+			})
+			return
+		}
+
+		if player.Created == 0 {
+			player.Created = time.Now().Unix()
+
+			filter = bson.M{"username": player.Username}
+			ctx, cancel = context.WithTimeout(context.Background(), time.Second*5)
+			defer cancel()
+			res = db.Collection(UserCollection).FindOneAndUpdate(ctx, filter, bson.M{"$set": player})
+
+			if res.Err() != nil {
+				log.Println(res.Err())
+				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+					"reason": "failed to create user",
+				})
+				return
+			}
+		}
+
+		c.JSON(http.StatusOK, player)
+	}
+
 }
 
 // CORSMiddleware allow all

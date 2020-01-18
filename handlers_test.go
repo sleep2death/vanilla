@@ -13,6 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"github.com/sleep2death/vanilla/core"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -101,6 +102,33 @@ func TestLoginHandler(t *testing.T) {
 	assert.Equal(t, "token is expired", resp["reason"])
 }
 
+func TestPlayerInfoHandler(t *testing.T) {
+	r, err := setupRouter()
+	if err != nil {
+		t.Error(err)
+	}
+
+	// login and get the token
+	token, err := getToken(r)
+	if err != nil {
+		t.Error(err)
+	}
+	// t.Logf("response token is %s", resp["token"])
+
+	// get api/ping with the token
+	req, _ := http.NewRequest("GET", "api/playerinfo?username=aspirin2d", nil)
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	var resp core.Player
+	err = json.NewDecoder(w.Body).Decode(&resp)
+	if err != nil {
+		t.Error(err)
+	}
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
 func TestWebsocket(t *testing.T) {
 	router, err := setupRouter()
 	if err != nil {
@@ -116,10 +144,7 @@ func TestWebsocket(t *testing.T) {
 		t.Error(err)
 	}
 
-	header := make(http.Header)
-	header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-
-	conn, resp, err := websocket.DefaultDialer.Dial("ws://localhost:8082/ws", header)
+	conn, resp, err := websocket.DefaultDialer.Dial("ws://localhost:8082/ws?token="+token, nil)
 	if err != nil {
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {

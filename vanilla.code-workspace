@@ -16,7 +16,6 @@
     "files.eol": "\n",
 		"go.testFlags": [
       "-v",
-      "-race"
 		],
 		"vim.leader": ",",
 		"vim.insertModeKeyBindings": [

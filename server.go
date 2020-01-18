@@ -31,10 +31,11 @@ func setupRouter() (*gin.Engine, error) {
 
 	api := router.Group("/api")
 	api.Use(authMiddleware())
-	api.GET("/ping", getWSHandler())
+	api.GET("/ping", getPingHandler())
+	api.GET("/playerinfo", getPlayerInfoHandler(db))
 
 	ws := router.Group("/ws")
-	ws.GET("", getWSHandler())
+	ws.GET("", getWSHandler(db))
 
 	return router, nil
 }
